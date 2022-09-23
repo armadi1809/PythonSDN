@@ -6,6 +6,8 @@ from datetime import datetime
 import threading
 import argparse
 
+
+#Parse command line flags
 sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)      # For UDP
 udp_host = sys.argv[2]
 udp_port = sys.argv[3] 
@@ -18,9 +20,7 @@ parser.add_argument("contPort", type = str)
 parser.add_argument("-f", "--failure", help = "Link Failure ID", required = False, default = "")
 argument = parser.parse_args()
 
-
-
-
+#Method to handle sending from the switch
 def handle_sending():
     global udp_host, udp_port, neighbors,filename
     count = 0
@@ -60,9 +60,6 @@ def handle_sending():
                     topUpdate = topUpdate + str(v) +",True\n"
                 elif(neighbors[v][2] == True and neighbors[v][3] == False):
                     linkUpdate = 1
-                    # with open(filename, "a") as logFile:
-                    #     logFile.write(str(datetime.now().time())+ "\n")
-                    #     logFile.write("Neighbor Alive " + str(v)+"\n\n\n")
                     topUpdate = topUpdate + str(v) +",True\n"
                     neighbors[v][3] = True
             if (linkUpdate == 1): 
@@ -70,6 +67,7 @@ def handle_sending():
             
             count = 0
 
+#Method responsible for handling received messages from other switches and controller. 
 def handle_receiving():
     global udp_host, udp_port, neighbors,filename
     
@@ -85,8 +83,9 @@ def handle_receiving():
             if "KEEP_ALIVE" in data: 
            
                 if (neighbors[int(data[0])][2] == False and neighbors[int(data[0])][3] == False and data[0] != argument.failure): 
+
+                    #Neighbor is back alive
                     neighbors[int(data[0])][2] = True
-                    
                     neighbors[int(data[0])][0] = addr[0]
                     neighbors[int(data[0])][1] = str(addr[1])
                     with open(filename, "a") as logFile:
@@ -98,29 +97,17 @@ def handle_receiving():
                     
             elif(data[0] == sys.argv[1]):
                 with open(filename, "a") as logFile:
-                    print("Here logging route Updates")
                     logFile.write(str(datetime.now().time())+"\n")
                     logFile.write("Routing Update\n")
                     logFile.write(data[2:])
                     logFile.write("Routing Complete\n\n\n")
             
-        
-         
-
-
-
 def main():
     global udp_host, udp_port, neighbors,filename
     
-    
-
-    
     udp_host = sys.argv[2]		# Host IP
-    udp_port = int(sys.argv[3])			        # specified port to connect
-   
+    udp_port = int(sys.argv[3])			        # specified port to connect   
     msg = ("Register request " + sys.argv[1]).encode("ascii")
-
-
     sock.sendto(msg,(udp_host,udp_port))
     with open(filename, "w") as logFile:
         logFile.write(str(datetime.now().time()) + "\n")
@@ -136,7 +123,6 @@ def main():
     data = data.decode('utf-8')
     dataList = data.split('\n')
 
-
     neighbors = {}
     for i in range(1,len(dataList) - 1) :
                 
@@ -150,19 +136,20 @@ def main():
         else:
             neighbors[int(neighborAddress[0])].append(True)
             neighbors[int(neighborAddress[0])].append(True)
-
-            
+           
     with open(filename, "a") as logFile:
         logFile.write(str(datetime.now().time()) + "\n")
         logFile.write("Routing update\n")
         logFile.write(data1[2:])
         logFile.write("Routing complete\n\n\n")
+
+    #Threads start
     sender = threading.Thread(target=handle_sending,args=())
     receiver = threading.Thread(target=handle_receiving, args=())
-    sender.start()
-            
+    sender.start()    
     receiver.start()
     sender.join()
     receiver.join()
+
 if __name__ == "__main__":        
     main()
